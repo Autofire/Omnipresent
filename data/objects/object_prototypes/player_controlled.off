@@ -1,0 +1,667 @@
+# This prototype is for all the game-mechanics that have nothing to do with how a player moves, but which track stuff to do with things like key input, score tracking, events, achievements, inventory, etc.  This stuff should be fairly portable across game genre types.
+# This prototype is the one declared in module.cfg as "the" playable character object type in frogatto, which all playable characters must inherit from.  The purpose of this is to allow us to reference functions specific to the character in levels (like recording game events) without having to do a type declaration on every single line.
+# Also, this prototype must avoid any sort of physics/gameplay interaction with anything in the game, because it is also used for menu controllers and such.
+
+{
+id: "player_controlled",
+solid_dimensions: [],
+is_human: true,
+//prototype: ["core_shaders"],
+collide_dimensions: [],
+
+#-------------------------- constructor/destructor events --------------------------#
+
+/*
+on_enter_level: "	[
+						player_constructor_debug('enter_level'),
+						//transient object doesn't fire this - we don't need the proto_event call.
+						epihittable_obj_enter_level,
+					]",  
+
+on_load_checkpoint: "	[
+							set(me._constructed, false),
+							player_constructor_debug('load_checkpoint'),
+							proto_event('transient_object','load_checkpoint'),
+							epihittable_obj_load_checkpoint,
+						]",
+
+on_load: "	[
+				player_constructor_debug('load'),
+				proto_event('transient_object','load'),
+				epihittable_obj_load,
+			]",
+
+properties: {
+	help: "string <- q{\nDebug Console Help:\nThis is the debug console. Commands, which are written in FFL, are run on the\nselected object. For example, you just ran the help command on our hero. Some\nother commands you could try might be 'set(velocity_y, -5000)', or 'add(hp,5)'.To change the target of your actions in the console, click on the desired\nobject. There is a lot more you can do with FFL, so have a look at the\ndocumentation on our wiki, https://github.com/frogatto/frogatto/wiki/. If you\nget stuck, www.frogatto.com has a friendly forum where you can seek advice.\nPress ctrl-d to close the console.\n}",
+
+		#-- debug flags --#	
+	should_debug_output_player_constructor_info: "bool :: false",
+	player_constructor_debug: "def(string the_event_name) -> commands if(should_debug_output_player_constructor_info,  debug(the_event_name + ' at ${level.cycle} ${me.type} ${addr(me)}'))",
+
+#-------------------------- constructor/destructor logic --------------------------#
+	epihittable_obj_constructor: "commands ::	[
+													player_constructor_debug('player_constructor'),
+													player_controlled_obj_constructor,
+													general_player_obj_constructor,
+													specific_player_obj_constructor,
+												]",
+
+	player_controlled_obj_constructor: "commands :: [
+														_adjust_level_dim_for_small_levels,
+													]",
+	general_player_obj_constructor: "commands :: null",	//e.g. `player_controlled_platformer_character`
+	specific_player_obj_constructor: "commands :: null",	//e.g. `frogatto_playable`
+
+
+
+
+	epihittable_obj_destructor: "commands ::	[
+													player_constructor_debug('player_destructor'),
+													player_controlled_obj_destructor,
+													general_player_obj_destructor,
+													specific_player_obj_destructor,
+												]",
+
+	player_controlled_obj_destructor:  "commands :: null",
+	general_player_obj_destructor: "commands :: null",		//e.g. `player_controlled_platformer_character`
+	specific_player_obj_destructor: "commands :: null",	//e.g. `frogatto_playable`
+
+
+
+
+#-------------------------- constructor/destructor-related events --------------------------#
+	/*
+		Unlike most of the other stuff which gets triggered from deep down in `transient_obj`, these actually get triggered here, in `player_controlled`, since these are focused on the player object in particular, and since none of these are relevant to non-player objects.  These allow us to control any "weird stuff" the player, alone, has to do only on specific events.
+	*/
+
+
+#-- enter level --#
+	epihittable_obj_enter_level: "commands ::	[
+													player_controlled_enter_level,
+													general_player_obj_enter_level,
+													specific_player_obj_enter_level,
+												]",
+
+	player_controlled_enter_level: "commands :: null",
+	general_player_obj_enter_level: "commands :: null",
+	specific_player_obj_enter_level: "commands :: null",
+
+
+
+
+
+#-- load checkpoint --#
+	epihittable_obj_load_checkpoint: "commands ::	[
+														player_controlled_load_checkpoint,
+														general_player_obj_load_checkpoint,
+														specific_player_obj_load_checkpoint,
+													]",
+
+	player_controlled_load_checkpoint: "commands :: null",
+	general_player_obj_load_checkpoint: "commands :: null",
+	specific_player_obj_load_checkpoint: "commands :: null",
+
+
+#-- load --#
+	epihittable_obj_load: "commands ::	[
+											player_controlled_load,
+											general_player_obj_load,
+											specific_player_obj_load,
+										]",
+
+	player_controlled_load: "commands :: null",
+	general_player_obj_load: "commands :: null",
+	specific_player_obj_load: "commands :: null",
+
+
+
+#-------------------------- constructor/destructor utility functions --------------------------#
+
+	_adjust_level_dim_for_small_levels: "commands ::
+		if(level.camera_position[2] > level.dimensions[2] - level.dimensions[0],
+			set(level.dimensions, [level.dimensions[0]-diff/2, level.dimensions[1], level.dimensions[2]+diff/2, level.dimensions[3]])
+			where diff = level.camera_position[2] - (level.dimensions[2] - level.dimensions[0])
+		)
+	",
+
+
+
+#-------------------------- keyboard configuration --------------------------#
+	input_configuration:	{
+								type: "{ PlayerInputType -> string }",
+								init: "{
+									enum button_toggle_attack_left:		'q',
+									enum button_toggle_attack_right:	'w',
+									enum button_toggle_item_left:		'e',
+									enum button_toggle_item_right:		'r',
+									enum button_open_inventory:			'i',
+								}",
+							},
+	
+	get_key_for_input: "def(PlayerInputType input_type) -> string  input_configuration[input_type] asserting input_type in keys(input_configuration)",
+	set_key_for_input: "def(PlayerInputType input_type, string input_key) -> commands set(input_configuration[input_type], input_key)",
+
+
+
+#-------------------------- events --------------------------#
+	store_event_add: "def(string event_name, int addend) -> commands
+		set(stored_events, zip(stored_events, {(event_name): addend}, a+b))
+		asserting level.in_editor or event_name != '' | {message:'Attempting to add a stored event, but the event name given is an empty string.', name:event_name, addend:addend}",
+	
+	store_event: "def(string event_name, int value) -> commands
+		add(stored_events, {(event_name): value})
+		asserting level.in_editor or event_name != '' | {message:'Attempting to store an event, but the event name given is an empty string.', name:event_name, value:value}",
+	
+	get_stored_event: "def(string event_name) -> string|int|null (stored_events[event_name])",
+	stored_events: {type: "{string -> int}", default: {"started_game" : 1}},
+
+
+	is_demo_version: "bool :: false",
+
+#-------------------------- random library functions that require storage in the player object --------------------------#
+	screen_shake:  "def(
+						decimal angle,
+						decimal magnitude,
+						decimal cross_magnitude,
+						int duration,
+						decimal num_repeats_primary=1.0,
+						decimal num_repeats_cross_movement=1.0,
+						decimal cross_angle_delta=180.0
+					) -> commands execute(me, [
+		map(range(duration), schedule(value,
+			; set(level.lock_screen, [ round(cam[0]+x_offset), round(cam[1]+y_offset) ])
+				where x_offset = offset_amount * cos(angle) + cross_offset_amount * sin(angle + lib.math.round( 1d(cross_angle_delta)-(cross_angle_delta/2.0) ))
+				where y_offset = offset_amount * sin(angle) + cross_offset_amount * cos(angle + lib.math.round( 1d(cross_angle_delta)-(cross_angle_delta/2.0) ))
+				
+				where cross_offset_amount = (cross_magnitude * ( wave_func(progress * num_repeats_cross_movement) )) * lib.math.ease_in_sine(progress)
+				where offset_amount = (magnitude * ( wave_func(progress * num_repeats_primary) )) * lib.math.ease_in_sine(progress)
+
+				where wave_func = def(decimal fraction) -> decimal sin(fraction * 360)
+				
+				where progress = (1.0 - decimal(value)/duration)  //normalize value to a range between 0.0 ~ 1.0
+				where cam = lib.standardize.natural_camera(level)
+				
+		)),
+		schedule(duration+1, ; set(level.lock_screen, null)),
+	])",
+
+
+	exempt_from_dying_whilst_falling_rules_for_a_cutscene: { type: "bool", default: false },
+	exempt_from_dying_whilst_falling_due_to_level_portals: "bool :: size(filter(level.active_chars, value is obj invisible_level_portal and value.player_is_inside_bounds = true)) > 0",
+
+#-------------------------- cutscene camera control --------------------------#
+	observe_points_of_interest: "def([custom_obj] steps) -> commands [
+		me.add_control_lock([], 'observe_points_of_interest'),
+		internal_observe_points_of_interest(0, [level.player] + steps)
+	]",
+
+
+	internal_observe_points_of_interest: "def(int index, [custom_obj] steps, int last_step_duration=80) -> commands
+		[
+			spawn('camera_controller', x, y, {
+				average_path: true,
+				last_preview_route: true,
+				passepartout: 'standard',
+				path: if((source = level.player), [], [source]) + [dest],
+				release_control: at_last_step,
+				speed: 15,
+				tween_type: 'ease_in_out_cubic',
+				start_with_player_as_first_node: (source = level.player),
+				linked_delay: if(at_last_step, 0, last_step_duration),
+				callback: [def() -> commands [
+						if(size(steps) > 1,
+							internal_observe_points_of_interest(index+1, steps[1:size(steps)]),
+							
+							//stuff done at the very end:
+							me.remove_control_lock('observe_points_of_interest')
+						)
+					]
+				]
+			},[
+				fire_event(child,'triggered')
+			])
+		]
+			where at_last_step = (size(steps) = 1)
+			where source = if(index = 0, level.player, steps[0])
+			where dest = if(size(steps) > 1, steps[1], level.player)
+	",
+
+
+	observe_and_trigger_points_of_interest: "def([custom_obj] steps, bool new_state, bool return_to_player, commands final_callback) -> commands [
+		if(size(steps) > 0,
+			[
+				me.add_control_lock([], 'observe_points_of_interest'),
+				internal_observe_and_trigger_points_of_interest(0, [level.player] + steps, new_state, return_to_player, final_callback)
+			]
+		)
+	]",
+
+	observe_and_trigger_points_of_interest_with_delay: "def([custom_obj] steps, bool new_state, bool return_to_player, commands final_callback, int last_step_duration=100, decimal trigger_offset_fraction=0.3) -> commands [
+		if(size(steps) > 0,
+			[
+				me.add_control_lock([], 'observe_points_of_interest'),
+				internal_observe_and_trigger_points_of_interest(0, [level.player] + steps, new_state, return_to_player, final_callback, last_step_duration, trigger_offset_fraction)
+			]
+		)
+	]",
+
+	internal_observe_and_trigger_points_of_interest: "def(int index, [custom_obj] steps, bool new_state, bool return_to_player, commands final_callback, int last_step_duration=80, decimal trigger_offset_fraction=0.625) -> commands
+		[
+			spawn('camera_controller', x, y, {
+				average_path: true,
+				last_preview_route: true,
+				passepartout: 'standard',
+				path: if((source = level.player), [], [source]) + [dest],
+				release_control: at_last_step,
+				speed: 20,
+				tween_type: 'ease_in_out_cubic',
+				start_with_player_as_first_node: (source = level.player),
+				linked_delay: if(at_last_step and return_to_player, 0, last_step_duration),
+				early_callback_offset: if(at_last_step and return_to_player, 0, early_callback_offset),
+				callback: [def() -> commands [
+						if(not at_last_step,
+							[
+								if(current_step is obj triggerable,[
+									//debug(level.cycle, new_state),
+									set(current_step.temporarily_lock_event_state, null),
+									if(new_state = true, current_step.trigger_on, current_step.trigger_off)
+								]),
+								
+								if(current_step is obj padlock_key,[
+									current_step.visually_reappear
+								]),
+								 
+								
+								if((not return_to_player) and at_second_to_last_step,
+									schedule(early_callback_offset, do_final_callbacks),
+									schedule(early_callback_offset, internal_observe_and_trigger_points_of_interest(index+1, steps[1:size(steps)], new_state, return_to_player, final_callback)),
+								)
+							] where current_step = steps[1],  //yes, [1], not [0].  We want the destination object that the camera was 'moving to'.,
+							do_final_callbacks
+						)
+					]
+				]
+			},[
+				fire_event(child,'triggered')
+			])
+		]
+			where early_callback_offset = lib.math.round(last_step_duration * trigger_offset_fraction)
+			where source = preferred_camera_focus(if(index = 0, level.player, steps[0]))
+			where dest = preferred_camera_focus(if(not at_last_step, steps[1], level.player))
+			where at_last_step = (size(steps) = 1)
+			where at_second_to_last_step = (size(steps) = 2)
+			where preferred_camera_focus = def(custom_obj obj) -> custom_obj if(obj is obj triggerable, obj.preferred_visual_focus_object_for_camera, obj)
+			
+			
+				//by final, we mean once the ENTIRE panning sequence is done, the camera control is being released, and we're going back to regular gameplay
+			where do_final_callbacks = commands :: [
+								final_callback,
+								me.remove_control_lock('observe_points_of_interest')
+							]
+	",
+
+#-------------------------- control-lock management --------------------------#
+	add_control_lock: "def( [string] new_contents, string|custom_obj name ) -> commands execute(me,
+		[
+			set(me.control_lock, distilled_control_lock),
+			set(me.control_lock_registry, new_registry)
+		])
+	
+	where distilled_control_lock = unique(registry_contents)
+	where registry_contents = flatten(map(new_registry, value.lock_contents))
+	where new_registry = control_lock_registry + [{lock_contents: new_contents, name: if(name is custom_obj, name.label, name)}]",
+	
+	remove_control_lock: "def( string|custom_obj name ) -> commands execute(me,
+		[
+			/*debug('removing_control_lock = ' + str(distilled_control_lock) + 'on cycle ' + str(cycle)),*/
+			if(size(new_registry) > 0,
+				set(me.control_lock, distilled_control_lock),
+				set(me.control_lock, null)
+			),
+			set(me.control_lock_registry, new_registry)
+		])
+	
+	where distilled_control_lock = unique(registry_contents)
+	where registry_contents = flatten(map(new_registry, value.lock_contents))
+	where new_registry = filter(control_lock_registry, value.name != name)
+	",
+	
+	does_control_lock_exist: "def(string name) -> bool
+		bool( find(map(control_lock_registry, value.name), value = name) )
+	",
+	
+	apply_registry: "commands :: [
+			set(me.control_lock, distilled_control_lock)
+	
+		where distilled_control_lock = unique(registry_contents)
+		where registry_contents = flatten(map(control_lock_registry, value.lock_contents))
+	]",
+
+
+#-------------------------- hittable overrides --------------------------#
+	team: "'player'",
+	has_mini_hp_bar: "bool :: false",
+
+
+#-------------------------- inventory commands --------------------------#
+		#####-- item storage --#####
+	item_list_complete: "[class inventory_item] :: lib.inventory_utils.all_items",
+	
+	item_type_list_complete: "[InventoryItemType] :: map(item_list_complete, value.id)",
+
+	current_secondary_item: { type: "InventoryItemType", init: "enum item_null" },
+
+	current_ability: { type: "InventoryItemType", init: "enum item_tongue" },
+	
+	current_super_ability: { type: "InventoryItemType", init: "enum item_tongue" },
+
+	current_underwater_ability: { type: "InventoryItemType", init: "enum item_underwater_bubble_attack" },
+
+	is_in_super_mode: "bool :: false", //virtual
+
+
+
+
+		#####-- item lists --#####
+	ability_list_full: "[InventoryItemType] :: map(filter(item_list_complete, value.item_category = enum primary_ability), value.id)",
+
+	ability_list: "[InventoryItemType] :: map(filter(items_carried, value.item_category = enum primary_ability), value.id)",
+
+
+
+	super_ability_list_full: "[InventoryItemType] :: [enum item_tongue] + map(filter(item_list_complete, value.item_category = enum super_ability), value.id)",
+
+	//super_ability_list: "[InventoryItemType] :: [enum item_tongue] + map(filter(items_carried, value.item_category = enum super_ability), value.id)",
+
+	super_ability_list: "[InventoryItemType] :: [enum item_tongue] + map(supers_available_to_player, value.id)
+		where supers_available_to_player = filter( all_super_abilities, value.item_element_type in elements_owned_by_player)
+		where all_super_abilities = filter(item_list_complete, value.item_category = enum super_ability)",
+
+	underwater_ability_list: "[InventoryItemType] :: [enum item_underwater_bubble_attack] + map(underwater_abilities_available_to_player, value.id)
+		where underwater_abilities_available_to_player = filter( all_underwater_abilities, value.item_element_type in elements_owned_by_player)
+		where all_underwater_abilities = filter(item_list_complete, value.item_category = enum underwater_ability)",
+
+
+
+	secondary_item_list_full: "[InventoryItemType] :: map(filter(item_list_complete, value.item_category = enum secondary_item), value.id)",
+
+	secondary_item_list: "[InventoryItemType] :: map(filter(items_carried, value.item_category = enum secondary_item), value.id)",
+
+
+
+	all_trophy_items: "[class inventory_item] :: filter(item_list_complete, value.item_category = enum trophy)",
+
+	trophy_items_carried: "[class inventory_item] :: filter(items_carried, value.item_category = enum trophy)",
+
+	available_trophy: "class inventory_item|null :: if(first_trophy != null, first_trophy, null)
+		where first_trophy = head(trophy_items_carried)",
+
+
+
+	
+	elements_owned_by_player: "[ItemElementType] :: unique(filter(map(ability_list, item_info(value).item_element_type), value != null))",
+
+	null_item: "class inventory_item :: find_or_die(item_list_complete, value.id = enum item_null)",
+
+	nth_item_away_from_current_item_of_category: "def(int offset, ItemCategory category) -> InventoryItemType
+														if(size(the_item_list) > 0 and the_current_item in the_item_list,
+																					the_item_list[final_index],
+																					enum item_null
+																				)
+
+															where final_index = if(size(the_item_list) > 0,
+																					mod(index(the_item_list, the_current_item) + offset, size(the_item_list)),
+																					0
+																				)
+
+															where the_item_list = switch(category,
+																								enum super_ability, 		super_ability_list,
+																								enum secondary_item,		secondary_item_list,
+																								enum underwater_ability,	underwater_ability_list,
+																															ability_list
+																							)
+															where the_current_item = switch(category,
+																								enum super_ability, 		current_super_ability,
+																								enum secondary_item,		current_secondary_item,
+																								enum underwater_ability,	current_underwater_ability,
+																															current_ability
+																							)",
+
+
+
+
+		#####-- item info --#####
+	item_info: "def(InventoryItemType item_name) -> class inventory_item find_or_die(item_list_complete, 'Trying to get info for an inventory item, but cant find this item in the list: ' + item_name, value.id = item_name)",  //yes, we're using find_or_die here - we want to fail hard-and-fast if we ask for an item that is unrecognized.
+
+	has_item: "def(InventoryItemType item_name) -> bool if(item_quantities[item_name] = null, false, item_quantities[item_name] > 0)",  
+	
+	number_of_item: "def(InventoryItemType item_name) -> int if(item_quantities[item_name] = null, 0, item_quantities[item_name] )",
+
+	items_carried: "[class inventory_item] :: filter(item_list_complete, item_quantities[value.id] != null and item_quantities[value.id] > 0)",
+	
+	active_secondary_item: "class inventory_item :: item_info(current_secondary_item)",
+
+
+
+
+
+
+		#####-- item usage --#####
+	use_active_secondary_item: "commands :: active_secondary_item.item_use(me)",
+
+
+
+
+
+
+		#####-- item quantity management --#####
+	add_item: "def(InventoryItemType item_name, int new_count) -> commands
+		[
+			add(item_quantities[item_name],  new_count) ;
+			custom_post_item_amount_modification_commands,
+		]",
+
+	set_item_amount: "def(InventoryItemType item_name, int new_count) -> commands
+		[
+			set(item_quantities[item_name],  new_count) ;
+			custom_post_item_amount_modification_commands ,
+		]",
+
+	item_quantities: { type: "{InventoryItemType -> int }", init: "{ }" },
+
+		/*
+			On rare occasions (generally due to papering-over builtins) we may need to invoke custom code when an item amount gets changed, rather than merely altering the amount.  This is a place where we can do that.
+		*/
+	custom_post_item_amount_modification_commands: "commands :: [
+																	combine_partial_heart_containers ;
+																	adjust_hitpoints_per_heart_containers
+																]",
+
+
+
+	last_toggled_ability: { type: "int", default: -10 },
+	last_toggled_secondary_item: { type: "int", default: -10 },
+
+
+
+	toggle_ability_by_category: "def( enum { left, right } direction, ItemCategory category ) -> commands
+				if( size(the_item_list) > 0,
+					[
+						set_current_item(
+							the_item_list[
+								mod(
+									(index(the_item_list, the_current_item) + addend),
+									size(the_item_list)
+								)
+							]
+						)
+					] where addend = if(direction = enum right, 1, -1)
+				)
+
+				where the_item_list = switch(category,
+													enum super_ability, 		super_ability_list,
+													enum secondary_item,		secondary_item_list,
+													enum underwater_ability,	underwater_ability_list,
+																				ability_list
+												)
+				where set_current_item = 	def(InventoryItemType target_item) -> commands
+											switch(category,
+													enum super_ability, 		set(current_super_ability, target_item),
+													enum secondary_item,		set(current_secondary_item, target_item),
+													enum underwater_ability,	set(current_underwater_ability, target_item),
+																				set(current_ability, target_item)
+												)
+
+				where the_current_item = 	switch(category,
+													enum super_ability, 		current_super_ability,
+													enum secondary_item,		current_secondary_item,
+													enum underwater_ability,	current_underwater_ability,
+																				current_ability
+												)
+			",
+
+
+		#####-- in-game item selection --#####
+	toggle_ability: "def( enum { left, right } direction) -> commands
+		[
+			if(not is_in_super_mode,
+				if(not underwater,
+					toggle_ability_by_category(direction, enum primary_ability),
+					toggle_ability_by_category(direction, enum underwater_ability)
+				),
+				toggle_ability_by_category(direction, enum super_ability),
+			),
+			set(last_toggled_ability, cycle),
+		]",
+
+	toggle_secondary_item: "def( enum { left, right } direction) -> commands
+		[
+			toggle_ability_by_category(direction, enum secondary_item),
+			set(last_toggled_secondary_item, cycle),
+		]",
+
+
+
+
+
+
+		#####-- gold --#####
+	acquire_gold: "def(int increase) -> commands [
+		if((int <- coins_total_obtained) + increase >= 10, achievement('pocket_money')),
+		if(coins_total_obtained + increase >= 1000, achievement('numismatologist')),
+		if(coins + increase >= 99999, [
+			set(coins, 99999),
+			set(gold_counter, 99999-coins),
+		], [
+			add(coins, increase),
+			add(coins_total_obtained, increase),
+			add(gold_counter, increase),
+		]),
+		set(last_got_gold, level.player.cycle),
+		fire_event(level.player,'display_gold')
+	]",
+
+
+
+
+
+		#####-- hearts --#####
+	proper_max_hp_amount: "max(number_of_item(enum item_heart_container) * 2, 1)",
+
+	combine_partial_heart_containers: "commands :: if(number_of_item(enum item_partial_heart_container) >= 4, 
+												/*
+													The order of operations here is extremely important.
+													We need to cut-down on the number of partial heart containers right away (putting it below the threshold), otherwise both of these commands to set the item amount (which is a function that invokes this function!) create an infinite loop on the first command.
+												*/
+											[
+												set_item_amount(enum item_partial_heart_container, leftover_partials),
+												add_item(enum item_heart_container, final_amount_of_full_hearts),
+											])
+												where final_amount_of_full_hearts = number_of_item(enum item_partial_heart_container)/4
+												where leftover_partials =  number_of_item(enum item_partial_heart_container)%4
+											",	
+
+	adjust_hitpoints_per_heart_containers: "commands :: [
+												set(hitpoints, proper_max_hp_amount),  //don't worry about proportions or anything; if we actually change the value, just be nice to the player and set it to max.
+												set(max_hitpoints, proper_max_hp_amount),
+											]",	
+
+
+
+
+
+
+	
+#-------------------------- achievements --------------------------#
+	//TODO: Test this.
+//	register_kill: "def(object enemy) -> commands [
+//		if(time()-chain[size(chain)-4][1] < 10,
+//			achievement('rampage')), //Look past the current object, and four objects into history, to get the timestomp of the enemy. If the time difference is less than five seconds, you get an achievement!
+//		if(not find(chain, value[0] and value[0].type != chain[0][0].type), 
+//			achievement('grudge')),
+//		set(me.vars.achievement_kill_chain, slice(me.vars.achievement_kill_chain, 1, 16) + [[enemy, time()]])
+//	] where chain = me.vars.achievement_kill_chain",
+	
+	register_kill: "def( obj hittable victim) -> commands null", //ignore this for now, deal with it later
+	
+//	register_kill: "def( obj hittable victim) -> commands [
+//						set(recorded_kills, slice(recorded_kills, 1,16) + {victim.type : time() }), //record only the last 16, don't grow the structure indefinitely
+//						
+//							//two achievements we check for:
+//							// 'rampage' - check the last five objects, see if they all got killed within 5 seconds.
+//						if(time() - timestamps[ size(timestamps) -4] < 10,  achievement('rampage')) where timestamps = values(recorded_kills),
+///							// 'grudge' - check if the last 10 objects killed were all the same type
+//						if(size(enemy_types) > 9, if(not find(enemy_types[size(enemy_types)-10, size(enemy_types)], value != enemy_types[size(enemy_types)])  , achievement('grudge'))) where enemy_types = keys(recorded_kills),
+//					]",
+
+#-------------------------- vars --------------------------#
+	control_lock_registry: { type: "[{lock_contents: [string], name: string}]", default: [] },
+
+		#-- general --#
+	recorded_kills: { type: "{string -> int}", default: {"nothing" : 0} },  
+	score: {type: "int", default: 0},
+	high_score: {type: "int", default: 0, persistent: false},
+	levels_visited: { type: "[string]", default: [] },
+	
+	heal: "def(int amount) -> commands add(me.hitpoints, int <- min(amount, level.player.max_hitpoints-level.player.hitpoints))", //There is no equivalent mana function because mana, not being a built-in, has been able to have a setter added to it that does the same thing.
+
+		#-- money --#
+	coins: { type: "int", default: 0 },
+	coins_total_obtained: { type: "int", default: 0 },
+	last_got_gold: { type: "int", default: 0 },		//tracks how long ago you got a coin, to decide if we should pop up a number for the tally
+	gold_counter: { type: "int", default: 0 },		//used to tally up recent acquisition of gold for the "number" that will flash in the air after you grab several coins.
+
+	
+		#-- mana --#
+	mana: {
+		type: "decimal",
+		default: 5000,
+		set: "[commands] <- [
+			set(_data, if(not should_manashock, newValue, 0)), 
+			if(should_manashock, set(mana_shock_cycle, cycle))
+		] where should_manashock = sign(newValue - _data) < 0 and newValue < mana_regen_per_frame*2
+		  where newValue = median(0, value, max_mana)"
+	},
+	
+	mana_shock_active: "bool :: cycle - mana_shock_cycle < mana_shock_duration",
+	mana_shock_duration: "int :: 150",
+	mana_shock_cycle: { type: "int", default: -150 },
+	mana_shock_guard: "def(commands thingToDo) -> commands if(not mana_shock_active, thingToDo)",
+
+	mana_regen_per_frame: 1,
+	max_mana: { type: "int", default: 5000 },
+
+},
+
+on_display_gold: "[
+	if( cycle - last_got_gold > 20 and gold_counter > 0, [
+		spawn('text_flash',midpoint_x,midpoint_y-20,{ txt: '+'+gold_counter}), 
+		set(gold_counter,0)
+	], 
+		schedule(10,fire_event('display_gold'))
+	),
+]",
+*/
+
+}
+

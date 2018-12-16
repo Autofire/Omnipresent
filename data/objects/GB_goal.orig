@@ -1,0 +1,15 @@
+{
+id: "GB_goal",
+zorder: 30,
+has_feet: false,
+//solid_area: [13,27,55,37],
+editor_info: {
+	category: "GB",
+},
+animation: {
+	id: "normal",
+	frames: 1,
+	image: "omni/GB_goal.png",
+	rect: [0,0,32,32],
+},
+}
