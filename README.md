@@ -10,7 +10,7 @@ Credits
 -------
 
 Tileset based on Miroko's tiles (with some edits)
-http://https://opengameart.org/content/gameboy-rpg-tile
+http://opengameart.org/content/gameboy-rpg-tile
 
 Music by Eric Skiff - Resistor Anthems - Available at http://EricSkiff.com/music
  * Come and Find Me
