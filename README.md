@@ -13,10 +13,10 @@ Tileset based on Miroko's tiles (with some edits)
 http://https://opengameart.org/content/gameboy-rpg-tile
 
 Music by Eric Skiff - Resistor Anthems - Available at http://EricSkiff.com/music
-	Come and Find Me
-	Come and Find Me - B mix
-	Arpanauts
-	Underclocked (underunderclocked mix)
+ * Come and Find Me
+ * Come and Find Me - B mix
+ * Arpanauts
+ * Underclocked (underunderclocked mix)
 
 Powered by Anura:
 https://github.com/anura-engine/anura/wiki
